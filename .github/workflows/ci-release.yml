@@ -1,0 +1,176 @@
+name: BA+FA CI + Auto Release
+
+on:
+  push:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Backend & Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------- Backend ----------
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Set mvnw executable
+        run: chmod +x ./mvnw
+
+      - name: Build & test backend (prod profile)
+        env:
+          SPRING_PROFILES_ACTIVE: prod
+          SPRING_FLYWAY_ENABLED: "false"
+        run: ./mvnw -B clean verify
+
+      # ---------- Frontend ----------
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  release:
+    name: Tag + Release (when VERSION changed)
+    runs-on: ubuntu-latest
+    needs: build
+
+    outputs:
+      version: ${{ steps.release_out.outputs.version }}
+      tag_created: ${{ steps.release_out.outputs.tag_created }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if VERSION changed
+        id: verchanged
+        run: |
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -qx "VERSION"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Stop if VERSION not changed
+        if: steps.verchanged.outputs.changed != 'true'
+        run: echo "VERSION not changed, skipping release."
+
+      - name: Read version
+        if: steps.verchanged.outputs.changed == 'true'
+        id: version
+        run: |
+          VERSION=$(cat VERSION | tr -d ' \n\r\t')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Validate SemVer (X.Y.Z)
+        if: steps.verchanged.outputs.changed == 'true'
+        run: |
+          echo "${{ steps.version.outputs.version }}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
+
+      - name: Check if tag exists
+        if: steps.verchanged.outputs.changed == 'true'
+        id: tagcheck
+        run: |
+          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set release outputs
+        id: release_out
+        run: |
+          echo "version=${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
+          if [ "${{ steps.verchanged.outputs.changed }}" = "true" ] && [ "${{ steps.tagcheck.outputs.exists }}" = "false" ]; then
+            echo "tag_created=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag_created=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create and push tag
+        if: steps.verchanged.outputs.changed == 'true' && steps.tagcheck.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Extract release body from RELEASE-NOTES.md
+        if: steps.verchanged.outputs.changed == 'true' && steps.tagcheck.outputs.exists == 'false'
+        id: relnotes
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          CHANGELOG="src/main/resources/RELEASE-NOTES.md"
+
+          if [[ ! -f "$CHANGELOG" ]]; then
+            echo "::warning::Changelog file not found: $CHANGELOG"
+            echo "has_body=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Normalize CRLF to LF for stable matching.
+          tr -d '\r' < "$CHANGELOG" > changelog.normalized.md
+
+          awk -v version="$VERSION" '
+            BEGIN { capture=0 }
+            $0 ~ "^## \\[" version "\\]" { capture=1 }
+            capture && $0 ~ "^## \\[" && $0 !~ "^## \\[" version "\\]" { exit }
+            capture { print }
+          ' changelog.normalized.md > release_body.md
+
+          if [[ -s release_body.md ]]; then
+            echo "has_body=true" >> "$GITHUB_OUTPUT"
+            echo "body_path=release_body.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No section found in RELEASE-NOTES.md for version $VERSION"
+            echo "has_body=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release (from RELEASE-NOTES.md)
+        if: steps.verchanged.outputs.changed == 'true' && steps.tagcheck.outputs.exists == 'false' && steps.relnotes.outputs.has_body == 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          body_path: ${{ steps.relnotes.outputs.body_path }}
+
+      - name: Create GitHub Release fallback (auto-generated notes)
+        if: steps.verchanged.outputs.changed == 'true' && steps.tagcheck.outputs.exists == 'false' && steps.relnotes.outputs.has_body != 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+
+  deploy:
+    name: Deploy GHCR Image
+    needs: release
+    if: needs.release.outputs.tag_created == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/ghcr-deploy.yml
+    secrets: inherit
