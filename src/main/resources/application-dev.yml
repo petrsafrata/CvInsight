@@ -1,17 +1,20 @@
 spring:
   application:
-    name: Spring-project-template
+    name: CvInsight
+
+  general-config:
+    api-version: v1
 
   # DB connection string
   datasource:
-    url: jdbc:postgresql://localhost:5432/testdb # URL pro připojení k PostgreSQL databázi
-    username: test
-    password: test
+    url: jdbc:postgresql://localhost:5432/cvinsight # URL for connecting to the PostgreSQL database
+    username: cv
+    password: cv
 
   # JPA setings
   jpa:
     hibernate:
-      ddl-auto: update   # Vývoj: update, Produkce: validate
+      ddl-auto: update   # Development: update, Production: validate
     properties:
       hibernate:
         jdbc:
@@ -20,7 +23,7 @@ spring:
 
   # Flyway setings
   flyway:
-    enabled: false  # Vyvoj: false, Produkce: true
+    enabled: false  # Development: false, Production: true
     baseline-on-migrate: true
     locations: classpath:db/migration
 
@@ -29,22 +32,58 @@ logging:
   level:
     org.hibernate.SQL: warn
 
-# Release notes cache settings
-releaseNotes:
-  cacheTtlMs: 600000 # Doba platnosti cache pro releasenotes v milisekundách (10 minut), aby se snížil počet dotazů na databázi při načítání releasenotes
+# Info cache settings
+info:
+  cacheTtlMs: 600000 # Cache expiration time in milliseconds (10 minutes)
+
+# JWT settings
+security:
+  jwt:
+    secret: change-me-to-a-secure-secret-at-least-32-bytes
+    accessTokenTtlSeconds: 900
+    refreshTokenTtlSeconds: 604800
+
+# CV extraction and parsing settings
+cv:
+  extraction:
+    supported-media-types: application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+  check:
+    min-readable-font-size: 3.0
+    white-color: FFFFFF
+    white-color-threshold: 0.99
+
+    media-types:
+      pdf: application/pdf
+      doc: application/msword
+      docx: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+  parse:
+    instructions: classpath:prompts/cv/parse-instructions.md
+    schema: classpath:prompts/cv/parse-schema.json
+
+  analysis:
+    instructions: classpath:prompts/cv/analysis-instructions.md
+    schema: classpath:prompts/cv/analysis-schema.json
+
+# OpenAI API settings
+openai:
+  api-key:
+  base-url: https://api.openai.com/v1
+  model: gpt-6-luna
 
 # Actuator config
 management:
   endpoints:
     web:
-      base-path: /actuator # Základní cesta pro všechny Actuator endpointy, např. /actuator/health, /actuator/info, atd.
+      base-path: /actuator # The base path for all Actuator endpoints, e.g. /actuator/health, /actuator/info, etc.
       exposure:
-        include: health,info,metrics # Seznam Actuator endpointů, které budou vystaveny, v tomto případě health, info a metrics
+        include: health,info,metrics # List of Actuator endpoints that will be exposed, in this case health, info and metrics
   endpoint:
     health:
-      show-details: always # Zobrazit podrobnosti o stavu zdraví vždy, i pro neautentizované uživatele, což usnadní diagnostiku problémů během vývoje
+      show-details: always # Show health status details at all times, even for unauthenticated users, making it easier to diagnose issues during development
 
 # Server settings
 server:
   servlet:
-    context-path: /api # Základní cesta pro všechny API endpointy, např. /api/predict, /api/movies, atd.
+    context-path: /api # Base path for all API endpoints, e.g. /api/connections, /api/audit, etc.

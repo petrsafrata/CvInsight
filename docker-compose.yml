@@ -1,1 +1,78 @@
 version: "3.9"
+
+services:
+
+  # =========================
+  # DATABASE
+  # =========================
+  db:
+    image: postgres:16-alpine
+    container_name: cvinsight-postgres-db
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - cvinsight_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+    restart: unless-stopped
+
+    networks:
+      - cvinsight-network
+
+  # =========================
+  # BACKEND
+  # =========================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: cvinsight-backend
+
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+      # Database
+      DB_HOST: db
+      DB_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+      # OpenAI
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    ports:
+      - "8080:8080"
+
+    restart: unless-stopped
+
+    networks:
+      - cvinsight-network
+
+networks:
+  cvinsight-network:
+
+volumes:
+  cvinsight_data:

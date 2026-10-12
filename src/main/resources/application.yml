@@ -1,17 +1,20 @@
 spring:
   application:
-    name: Spring-project-template
+    name: CvInsight
 
-  # DB connection string (Data ulo?ena v prom?nn�ch prost?ed�)
+  general-config:
+    api-version: v1
+
+  # DB connection string
   datasource:
-    url: jdbc:postgresql://${DB_HOST:db}:${DB_PORT:5432}/${POSTGRES_DB:} # URL pro p?ipojen� k PostgreSQL datab�zi
+    url: jdbc:postgresql://${DB_HOST:db}:${DB_PORT:5432}/${POSTGRES_DB:}
     username: ${POSTGRES_USER:}
     password: ${POSTGRES_PASSWORD:}
 
   # JPA setings
   jpa:
     hibernate:
-      ddl-auto: update   # V�voj: update, Produkce: validate
+      ddl-auto: update
     properties:
       hibernate:
         jdbc:
@@ -20,7 +23,7 @@ spring:
 
   # Flyway setings
   flyway:
-    enabled: false  # Vyvoj: false, Produkce: true
+    enabled: false
     baseline-on-migrate: true
     locations: classpath:db/migration
 
@@ -29,36 +32,72 @@ logging:
   level:
     org.hibernate.SQL: warn
 
-# Release notes cache settings
-releaseNotes:
-  cacheTtlMs: ${RELEASE_CACHE_TTL_MS:600000} # Doba platnosti cache pro releasenotes ulo?ena v prom?nn�ch prost?ed� s fallbackem na 10 minut
+# Info cache settings
+info:
+  cacheTtlMs: 600000 # Cache expiration time in milliseconds (10 minutes)
+
+# JWT settings
+security:
+  jwt:
+    secret: ${JWT_SECRET:change-me-to-a-secure-secret-at-least-32-bytes}
+    accessTokenTtlSeconds: ${JWT_ACCESS_TTL_SECONDS:900}
+    refreshTokenTtlSeconds: ${JWT_REFRESH_TTL_SECONDS:604800}
+
+# CV extraction and parsing settings
+cv:
+  extraction:
+    supported-media-types: application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+  check:
+    min-readable-font-size: 3.0
+    white-color: FFFFFF
+    white-color-threshold: 0.99
+
+    media-types:
+      pdf: application/pdf
+      doc: application/msword
+      docx: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+  parse:
+    instructions: classpath:prompts/cv/parse-instructions.md
+    schema: classpath:prompts/cv/parse-schema.json
+
+  analysis:
+    instructions: classpath:prompts/cv/analysis-instructions.md
+    schema: classpath:prompts/cv/analysis-schema.json
+
+# OpenAI API settings
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  base-url: https://api.openai.com/v1
+  model: gpt-6-luna
 
 # Actuator config
 management:
   endpoints:
     web:
-      base-path: /actuator  # Z�kladn� cesta pro v?echny Actuator endpointy, nap?. /actuator/health, /actuator/info, atd.
+      base-path: /actuator
       exposure:
-        include: health,info,metrics  # Seznam Actuator endpoint?, kter� budou vystaveny, v tomto p?�pad? health, info a metrics
+        include: health,info,metrics
   endpoint:
     health:
-      show-details: never # Zobrazit podrobnosti o stavu zdrav�
+      show-details: never
 
 # Server settings
 server:
-  port: ${BACKEND_PORT:8080} # Port, na kter�m bude backend naslouchat, ulo?en� v prom?nn�ch prost?ed� s fallbackem na 8080
-  shutdown: graceful # Nastaven� pro umo?n?n� graceful shutdownu, co? umo?n� dokon?it prob�haj�c� po?adavky p?ed vypnut�m serveru
-  forward-headers-strategy: framework # Nastaven� pro spr�vn� zpracov�n� hlavi?ek X-Forwarded-*, co? je d?le?it� p?i nasazen� za reverzn� proxy nebo load balancerem
+  port: ${BACKEND_PORT:8080}
+  shutdown: graceful
+  forward-headers-strategy: framework
   servlet:
-    context-path: /api # Z�kladn� cesta pro v?echny API endpointy, nap?. /api/predict, /api/movies, atd.
+    context-path: /api
   compression:
-    enabled: true # Povolit kompresi odpov?d�, co? m??e zlep?it v�kon p?enosem men?�ch dat p?es s�?
-    min-response-size: 1024 # Minim�ln� velikost odpov?di v bytech pro kompresi, v tomto p?�pad? 1 KB
-    mime-types: application/json,text/html,text/plain,text/css,application/javascript # Seznam MIME typ?, kter� budou komprimov�ny, v tomto p?�pad? b??n� textov� a JSON odpov?di
+    enabled: true
+    min-response-size: 1024
+    mime-types: application/json,text/html,text/plain,text/css,application/javascript
   tomcat:
     threads:
-      max: ${TOMCAT_THREADS_MAX:200} # Maxim�ln� po?et vl�ken pro zpracov�n� po?adavk?, ulo?en� v prom?nn�ch prost?ed� s fallbackem na 200
-      min-spare: ${TOMCAT_THREADS_MIN_SPARE:10} # Minim�ln� po?et rezervn�ch vl�ken, kter� jsou p?ipravena k okam?it�mu pou?it�, ulo?en� v prom?nn�ch prost?ed� s fallbackem na 10
-    max-connections: ${TOMCAT_MAX_CONNECTIONS:10000} # Maxim�ln� po?et sou?asn�ch p?ipojen�, kter� m??e Tomcat zpracovat, ulo?en� v prom?nn�ch prost?ed� s fallbackem na 10000
-    accept-count: ${TOMCAT_ACCEPT_COUNT:100} # Maxim�ln� po?et po?adavk?, kter� mohou b�t ve front? ?ekaj�c� na zpracov�n�, ulo?en� v prom?nn�ch prost?ed� s fallbackem na 100
-    connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:5s} # Doba, po kterou bude Tomcat ?ekat na dokon?en� po?adavku, ne? ho ukon?�, ulo?en� v prom?nn�ch prost?ed� s fallbackem na 5 sekund
+      max: ${TOMCAT_THREADS_MAX:200}
+      min-spare: ${TOMCAT_THREADS_MIN_SPARE:10}
+    max-connections: ${TOMCAT_MAX_CONNECTIONS:10000}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:100}
+    connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:5s}
