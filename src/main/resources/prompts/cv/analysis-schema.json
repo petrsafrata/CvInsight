@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "candidateSummary": {
+      "type": "string"
+    },
+    "matchingSkills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "missingSkills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "candidateSummary",
+    "matchingSkills",
+    "missingSkills"
+  ]
+}

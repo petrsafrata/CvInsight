@@ -1,0 +1,129 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "firstName": {
+      "type": ["string", "null"]
+    },
+    "lastName": {
+      "type": ["string", "null"]
+    },
+    "email": {
+      "type": ["string", "null"]
+    },
+    "phone": {
+      "type": ["string", "null"]
+    },
+    "address": {
+      "type": ["string", "null"]
+    },
+    "city": {
+      "type": ["string", "null"]
+    },
+    "region": {
+      "type": ["string", "null"]
+    },
+    "postalCode": {
+      "type": ["string", "null"]
+    },
+    "nationality": {
+      "type": ["string", "null"]
+    },
+    "gender": {
+      "type": ["string", "null"]
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "type": ["string", "null"]
+          },
+          "level": {
+            "type": ["string", "null"],
+            "enum": ["A1", "A2", "B1", "B2", "C1", "C2", null]
+          }
+        },
+        "required": [
+          "language",
+          "level"
+        ]
+      }
+    },
+    "drivingLicenses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "workExperience": {
+      "type": "array",
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "type": ["string", "null"]
+          },
+          "company": {
+            "type": ["string", "null"]
+          },
+          "from": {
+            "type": ["string", "null"]
+          },
+          "to": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": [
+          "position",
+          "company",
+          "from",
+          "to"
+        ]
+      }
+    },
+    "education": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "school": {
+            "type": ["string", "null"]
+          },
+          "field": {
+            "type": ["string", "null"]
+          },
+          "degree": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": [
+          "school",
+          "field",
+          "degree"
+        ]
+      }
+    }
+  },
+  "required": [
+    "firstName",
+    "lastName",
+    "email",
+    "phone",
+    "address",
+    "city",
+    "region",
+    "postalCode",
+    "nationality",
+    "gender",
+    "languages",
+    "drivingLicenses",
+    "workExperience",
+    "education"
+  ]
+}
