@@ -1,6 +1,6 @@
-package cz.jpmad.springprojecttemplate.config;
+package cz.jpmad.cvinsight.config;
 
-import cz.jpmad.springprojecttemplate.service.user.UserService;
+import cz.jpmad.cvinsight.service.user.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -16,13 +16,14 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
 
 /**
- * Konfigurace Spring Security pro REST API.
- * - Používá HTTP Basic autentizaci.
- * - Session-based sessions s limitem 1 session.
- * - Role-based autorizace pro admin endpointy.
- * - CORS konfigurace z WebConfig.
+ * Spring Security configuration for REST API.
+ * - Uses JWT Bearer authentication.
+ * - Stateless security (no server-side HTTP session).
+ * - CORS configuration from WebConfig.
  */
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
@@ -31,6 +32,7 @@ public class SecurityConfig {
 
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     DaoAuthenticationProvider authenticationProvider(PasswordEncoder passwordEncoder) {
@@ -40,50 +42,45 @@ public class SecurityConfig {
     }
 
     @Bean
-    AuthenticationManager authenticationManager(final AuthenticationConfiguration config) throws Exception {
+    AuthenticationManager authenticationManager(final AuthenticationConfiguration config) {
         return config.getAuthenticationManager();
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(final HttpSecurity http) {
         http
-                // Stateless REST API – CSRF není potřeba
+                // Disable CSRF for stateless REST API
                 .csrf(AbstractHttpConfigurer::disable)
-                // CORS – konfigurace z WebConfig
+                // CORS – configuration from WebConfig
                 .cors(Customizer.withDefaults())
-                // Session management
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED).maximumSessions(1))
-                // HTTP Basic autentizace pro REST API
-                .httpBasic(Customizer.withDefaults())
-                // Autorizace endpointů
+                // JWT is stateless
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Endpoint authorization
                 .authorizeHttpRequests(auth -> auth
-                        // Veřejné endpointy
+                        // Public endpoints
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/info/version").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll()
                         // Swagger / OpenAPI
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
-                        ).permitAll() // Pozdeji .hasRole("ADMIN") pro omezení přístupu pouze pro adminy
-                        // Actuator health
-                        .requestMatchers("/actuator/").permitAll() // Pozdeji .hasRole("ADMIN") pro omezení přístupu pouze pro adminy
-                        // Admin endpointy
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        // Vše ostatní vyžaduje autentizaci
+                        ).permitAll()
+                        // Other endpoints require authentication
                         .anyRequest().authenticated()
                 )
-                .authenticationProvider(authenticationProvider(passwordEncoder))
-                .logout(logout -> logout
-                        .logoutUrl("/auth/logout")
-                        .logoutSuccessHandler((request, response, authentication) -> response.setStatus(HttpServletResponse.SC_OK))
-                        .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
+                .exceptionHandling(ex -> ex
+                        // 401: missing or invalid JWT token
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                        // 403: valid token but insufficient permissions
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden"))
                 )
-                .rememberMe(rem -> rem
-                        .tokenValiditySeconds(120) // 2 minuty
-                );
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .authenticationProvider(authenticationProvider(passwordEncoder))
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable);
 
         return http.build();
     }

@@ -1,10 +1,10 @@
-package cz.jpmad.springprojecttemplate.api.info.dto;
+package cz.jpmad.cvinsight.api.info.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * DTO pro odpověď s verzí aplikace.
+ * DTO for response with application version.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record VersionResponse(

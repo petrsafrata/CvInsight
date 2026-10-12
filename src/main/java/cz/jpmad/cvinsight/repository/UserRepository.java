@@ -1,14 +1,13 @@
-package cz.jpmad.springprojecttemplate.repository;
+package cz.jpmad.cvinsight.repository;
 
-import cz.jpmad.springprojecttemplate.model.user.User;
+import cz.jpmad.cvinsight.model.user.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Repository pro správu uživatelů.
- * Poskytuje základní CRUD operace a možnost hledat uživatele podle uživatelského jména.
+ * Repository for managing User entities in the database using Spring Data JPA.
  */
 public interface UserRepository extends JpaRepository<User, UUID> {
 

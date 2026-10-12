@@ -1,4 +1,4 @@
-package cz.jpmad.springprojecttemplate.config;
+package cz.jpmad.cvinsight.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,7 +9,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 /**
- * CORS konfigurace pro komunikaci s frontendem
+ * CORS configuration for communication with the frontend
  */
 @Configuration
 public class WebConfig {
@@ -18,8 +18,8 @@ public class WebConfig {
     CorsConfigurationSource corsConfigurationSource() {
         final CorsConfiguration config = new CorsConfiguration();
 
-        // Povolené origins – přizpůsobte dle prostředí
-        // Porty 5173/5174 jsou běžné pro React/Vite dev server, port 80 pro produkci v Apache
+        // Origins enabled - adjust for environment
+        // Ports 5173/5174 are common for React/Vite dev server, port 80 for production in Apache
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
                 "http://localhost:5174",
@@ -31,12 +31,12 @@ public class WebConfig {
                 "http://127.0.0.1"
         ));
 
-        // Povolené HTTP metody
+        // Allowed HTTP methods
         config.setAllowedMethods(List.of(
                 "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
         ));
 
-        // Povolené hlavičky
+        // Allowed headers
         config.setAllowedHeaders(List.of(
                 "Authorization",
                 "Content-Type",
@@ -45,14 +45,16 @@ public class WebConfig {
                 "X-Requested-With"
         ));
 
-        // Povolení cookies / Authorization hlaviček
-        config.setAllowCredentials(true);
+        // JWT is sent in Authorization header, cookie credentials are not needed.
+        config.setAllowCredentials(false);
 
-        // Cache preflight odpovědí (v sekundách)
+        // Cache preflight response
         config.setMaxAge(3600L);
 
         final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", config);
+        // With context-path `/api` set, Spring compares paths without a prefix,
+        // therefore we register CORS globally.
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 }

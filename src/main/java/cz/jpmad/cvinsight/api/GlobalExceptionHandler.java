@@ -1,5 +1,9 @@
-package cz.jpmad.springprojecttemplate.api;
+package cz.jpmad.cvinsight.api;
 
+import cz.jpmad.cvinsight.exception.OpenAiUnavailableException;
+import cz.jpmad.cvinsight.exception.OpenApiException;
+import cz.jpmad.cvinsight.exception.RateLimitExceededException;
+import cz.jpmad.cvinsight.exception.UnsupportedCvFileTypeException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -20,14 +24,14 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
- * Globální zpracování výjimek pro REST API.
+ * Global exception handling for REST APIs.
  */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
-     * Zpracování neplatných argumentů (400).
+     * Handling invalid arguments (400).
      */
     @ExceptionHandler({IllegalArgumentException.class})
     public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
@@ -36,7 +40,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování konfliktů (409).
+     * Conflict handling (409).
      */
     @ExceptionHandler({IllegalStateException.class})
     public ResponseEntity<Map<String, Object>> handleConflict(IllegalStateException ex) {
@@ -45,7 +49,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování validačních chyb (400).
+     * Handling validation errors (400).
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
@@ -62,7 +66,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování chyb při bindování dat (400).
+     * Handling data binding errors (400).
      */
     @ExceptionHandler(BindException.class)
     public ResponseEntity<Map<String, Object>> handleBind(BindException ex) {
@@ -78,7 +82,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování nenalezených entit (404).
+     * Processing found entities (404).
      */
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(NoSuchElementException ex) {
@@ -87,7 +91,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování nenalezených uživatelů (404).
+     * Handling users not found (404).
      */
     @ExceptionHandler(UsernameNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleUsernameNotFound(UsernameNotFoundException ex) {
@@ -96,7 +100,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování odmítnuté autorizace (403).
+     * Processing authorization denied (403).
      */
     @ExceptionHandler({AuthorizationDeniedException.class})
     public ResponseEntity<Map<String, Object>> handleForbidden(AuthorizationDeniedException ex) {
@@ -105,7 +109,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování porušení integrity dat (409).
+     * Data integrity violation processing (409).
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
@@ -115,7 +119,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování špatných přihlašovacích údajů (401).
+     * Handling bad credentials (401).
      */
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
@@ -125,7 +129,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování odmítnutého přístupu (403).
+     * Handling access denied (403).
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleDenied(AccessDeniedException ex) {
@@ -134,7 +138,44 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování výjimek s nastaveným HTTP statusem.
+     * Unsupported Media Type (415).
+     */
+    @ExceptionHandler(UnsupportedCvFileTypeException.class)
+    public ResponseEntity<Map<String, Object>> handleDenied(UnsupportedCvFileTypeException ex) {
+        log.warn("Unsupported media type: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(error("UNSUPPORTED_MEDIA_TYPE", ex.getMessage()));
+    }
+
+    /**
+     * Too many requests (429).
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleDenied(RateLimitExceededException ex) {
+        log.warn("Too many requests: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(error("TOO_MANY_REQUESTS", "Too many requests"));
+    }
+
+    /**
+     * OpenApi error (502).
+     */
+    @ExceptionHandler(OpenApiException.class)
+    public ResponseEntity<Map<String, Object>> handleDenied(OpenApiException ex) {
+        log.warn("Bad gateway: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(error("BAD_GATEWAY", ex.getMessage()));
+    }
+
+    /**
+     * OpenAI API unavailable (503).
+     */
+    @ExceptionHandler(OpenAiUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleOpenAiUnavailable(OpenAiUnavailableException ex) {
+        log.warn("OpenAI API unavailable: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(error("SERVICE_UNAVAILABLE", "OpenAI API is temporarily unavailable"));
+    }
+
+    /**
+     * Handling exceptions with set HTTP status.
      */
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException ex) {
@@ -144,7 +185,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování I/O chyb při načítání zdrojů (500).
+     * Handling I/O errors when loading resources (500).
      */
     @ExceptionHandler(IOException.class)
     public ResponseEntity<Map<String, Object>> handleIO(IOException ex) {
@@ -154,7 +195,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Zpracování neočekávaných výjimek (500).
+     * Handling unexpected exceptions (500).
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleOther(Exception ex) {
@@ -164,7 +205,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Pomocná metoda pro vytvoření strukturované chybové odpovědi.
+     * Helper method for creating a structured error response.
      */
     private Map<String, Object> error(String code, String message) {
         return Map.of(
@@ -175,7 +216,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Přetížená pomocná metoda pro vytvoření strukturované chybové odpovědi s detaily.
+     * Overloaded helper method for creating a structured error response with details.
      */
     private Map<String, Object> error(String code, String message, String details) {
         return Map.of(

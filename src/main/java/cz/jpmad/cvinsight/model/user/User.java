@@ -1,13 +1,11 @@
-package cz.jpmad.springprojecttemplate.model.user;
+package cz.jpmad.cvinsight.model.user;
 
-import cz.jpmad.springprojecttemplate.model.user.enums.Role;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
@@ -17,8 +15,8 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Entita reprezentující uživatele systému.
- * Implementuje rozhraní UserDetails pro integraci se Spring Security.
+ * An entity representing a system user.
+ * Implements the UserDetails interface for integration with Spring Security.
  */
 @Entity
 @Table(name = "users")
@@ -37,10 +35,6 @@ public class User implements UserDetails {
     @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private Role role = Role.USER;
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -49,11 +43,11 @@ public class User implements UserDetails {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    // UserDetails implementace
+    // UserDetails implementation
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+        return List.of();
     }
 
     @Override
@@ -61,8 +55,7 @@ public class User implements UserDetails {
         return passwordHash;
     }
 
-
-    // equals / hashCode na základě UUID
+    // equals / hashCode based on UUID
 
     @Override
     public boolean equals(final Object o) {

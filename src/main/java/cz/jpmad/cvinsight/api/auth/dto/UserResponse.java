@@ -1,16 +1,15 @@
-package cz.jpmad.springprojecttemplate.api.auth.dto;
+package cz.jpmad.cvinsight.api.auth.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import cz.jpmad.springprojecttemplate.model.user.User;
-import cz.jpmad.springprojecttemplate.model.user.enums.Role;
+import cz.jpmad.cvinsight.model.user.User;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
- * DTO pro odpověď s uživatelskými údaji.
- * Nikdy neobsahuje heslo ani hash hesla.
+ * DTO for response with user data.
+ * Never contains password or password hash.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record UserResponse(
@@ -21,9 +20,6 @@ public record UserResponse(
         @JsonProperty("username")
         String username,
 
-        @JsonProperty("role")
-        Role role,
-
         @JsonProperty("createdAt")
         Instant createdAt
 ) {
@@ -31,7 +27,6 @@ public record UserResponse(
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),
-                user.getRole(),
                 user.getCreatedAt()
         );
     }
