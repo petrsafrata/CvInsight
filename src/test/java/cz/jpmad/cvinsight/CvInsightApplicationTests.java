@@ -1,4 +1,4 @@
-package cz.jpmad.springprojecttemplate;
+package cz.jpmad.cvinsight;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,13 +12,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SpringBootTest
 @ActiveProfiles("dev")
 @Testcontainers
-class SpringProjectTemplateApplicationTests {
+class CvInsightApplicationTests {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-            .withDatabaseName("testdb")
-            .withUsername("test")
-            .withPassword("test");
+            .withDatabaseName("cvinsight")
+            .withUsername("cv")
+            .withPassword("cv");
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
