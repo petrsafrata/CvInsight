@@ -1,9 +1,6 @@
 name: Publish Docker Image
 
 on:
-  workflow_run:
-    workflows: ["BA+FA CI + Auto Release"]
-    types: [completed]
   workflow_call:
 
 permissions:
@@ -13,61 +10,95 @@ permissions:
 jobs:
   publish:
     name: Build and Push Image to GHCR
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
+
     runs-on: ubuntu-latest
+
     env:
-      HEAD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      HEAD_SHA: ${{ github.sha }}
 
     steps:
+      # =========================
+      # CHECKOUT
+      # =========================
       - name: Checkout repository at workflow head
         uses: actions/checkout@v4
         with:
           ref: ${{ env.HEAD_SHA }}
           fetch-depth: 0
+          persist-credentials: false
 
+      # =========================
+      # VERSION
+      # =========================
       - name: Read version
         id: version
         shell: bash
         run: |
-          VERSION=$(tr -d ' \n\r\t' < VERSION)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          VERSION=$(tr -d '[:space:]' < VERSION)
 
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version: $VERSION"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Release version: $VERSION"
+
+      # =========================
+      # RELEASE TAG VERIFICATION
+      # =========================
       - name: Verify release tag points to this commit
         id: tagcheck
         shell: bash
         run: |
-          git fetch --tags --force
+          git fetch origin --tags --force
+
           TAG="v${{ steps.version.outputs.version }}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
+
+          if git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; then
             TAG_SHA=$(git rev-list -n 1 "$TAG")
-            if [ "$TAG_SHA" = "${{ env.HEAD_SHA }}" ]; then
+
+            if [ "$TAG_SHA" = "$HEAD_SHA" ]; then
               echo "deploy=true" >> "$GITHUB_OUTPUT"
+              echo "Release tag verified: $TAG"
             else
               echo "deploy=false" >> "$GITHUB_OUTPUT"
+              echo "Release tag does not point to workflow commit."
             fi
           else
             echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Release tag not found: $TAG"
           fi
 
-      - name: Stop if no release tag for this commit
-        if: steps.tagcheck.outputs.deploy != 'true'
-        run: echo "No release tag on this commit; skipping deploy."
-
-      - name: Extract metadata
+      # =========================
+      # IMAGE METADATA
+      # =========================
+      - name: Extract image metadata
         if: steps.tagcheck.outputs.deploy == 'true'
         id: meta
         shell: bash
         run: |
           OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          IMAGE_NAME="ghcr.io/${OWNER_LC}/configviz"
 
-          echo "version=${{ steps.version.outputs.version }}" >> "$GITHUB_OUTPUT"
+          IMAGE_NAME="ghcr.io/${OWNER_LC}/cv-insight"
+          VERSION="${{ steps.version.outputs.version }}"
+
           echo "image=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+          echo "Docker image: $IMAGE_NAME"
+          echo "Image version: $VERSION"
+
+      # =========================
+      # DOCKER BUILDX
+      # =========================
       - name: Set up Docker Buildx
         if: steps.tagcheck.outputs.deploy == 'true'
         uses: docker/setup-buildx-action@v3
 
+      # =========================
+      # GHCR AUTHENTICATION
+      # =========================
       - name: Log in to GitHub Container Registry
         if: steps.tagcheck.outputs.deploy == 'true'
         uses: docker/login-action@v3
@@ -76,14 +107,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
+      # =========================
+      # BUILD AND PUBLISH
+      # =========================
+      - name: Build and push Docker image
         if: steps.tagcheck.outputs.deploy == 'true'
         uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
           push: true
+          platforms: linux/amd64
           tags: |
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
             ${{ steps.meta.outputs.image }}:latest
-          platforms: linux/amd64
+          labels: |
+            org.opencontainers.image.title=CV Insight
+            org.opencontainers.image.description=REST API for CV extraction, validation, AI parsing and analysis
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.HEAD_SHA }}
+            org.opencontainers.image.licenses=Apache-2.0

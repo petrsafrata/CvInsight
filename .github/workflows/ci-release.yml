@@ -1,4 +1,4 @@
-name: BA+FA CI + Auto Release
+name: BA CI + Auto Release
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Backend & Frontend
+    name: Build & Test Backend
     runs-on: ubuntu-latest
 
     steps:
@@ -31,22 +31,6 @@ jobs:
           SPRING_PROFILES_ACTIVE: prod
           SPRING_FLYWAY_ENABLED: "false"
         run: ./mvnw -B clean verify
-
-      # ---------- Frontend ----------
-      - name: Set up Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend deps
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: frontend
-        run: npm run build
 
   release:
     name: Tag + Release (when VERSION changed)
