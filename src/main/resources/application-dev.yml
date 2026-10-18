@@ -68,7 +68,7 @@ cv:
 
 # OpenAI API settings
 openai:
-  api-key:
+  api-key: change-me-to-a-secure-api-key
   base-url: https://api.openai.com/v1
   model: gpt-6-luna
 
