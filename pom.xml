@@ -9,7 +9,7 @@
   </parent>
   <groupId>cz.jpmad</groupId>
   <artifactId>cv-insight</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <name>CV Insight</name>
   <description>REST API for CV extraction, validation, AI parsing and analysis</description>
   <url />
