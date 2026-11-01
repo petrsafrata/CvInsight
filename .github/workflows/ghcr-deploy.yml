@@ -21,7 +21,7 @@ jobs:
       # CHECKOUT
       # =========================
       - name: Checkout repository at workflow head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.HEAD_SHA }}
           fetch-depth: 0
